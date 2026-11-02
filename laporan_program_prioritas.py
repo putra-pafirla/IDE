@@ -15,7 +15,7 @@ ZENDESK_API_TOKEN = os.getenv("ZENDESK_API_TOKEN", "9QyvKRi97ZoYkBwqZugmzLG735Hv
 
 # URL Web App Apps Script (berakhiran /exec) dan kata rahasianya
 # (harus sama dengan SECRET_KEY di Apps Script)
-APPS_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL", "https://script.google.com/u/0/home/projects/1DufQwRkSatJKHrPARygsP7gGC_xCv2kxQWu5vWQJT6TJUaOq_DuGs2K9/edit")
+APPS_SCRIPT_URL = os.getenv("APPS_SCRIPT_URL", "https://script.google.com/a/macros/teknologi.belajar.id/s/AKfycbw_9S71IQGKOp4e-5pqOSjlH-ZmrLZrJcJQCty1X5WdNCKcJcWSQYMm2G9L8yQ3eeOdsA/exec")
 APPS_SCRIPT_KEY = os.getenv("APPS_SCRIPT_KEY", "program_prioritas")
 
 # Simpan juga salinan Excel? (True / False)
@@ -410,9 +410,19 @@ class Sheet:
         try:
             d = r.json()
         except ValueError:
+            judul = re.search(r"<title>(.*?)</title>", r.text, re.S | re.I)
+            judul = judul.group(1).strip() if judul else r.text[:120].strip()
+            alamat = r.url.split("?")[0]
+            if "/exec" not in self.url:
+                sebab = "APPS_SCRIPT_URL bukan URL Web App (harus .../macros/s/.../exec)."
+            elif "accounts.google.com" in r.url or "ServiceLogin" in r.url or "Sign in" in judul:
+                sebab = ("Web App minta login Google -> ubah 'Who has access' jadi 'Anyone' "
+                         "(Deploy > Manage deployments > Edit).")
+            else:
+                sebab = "Cek deployment Web App (Execute as: Me, Who has access: Anyone)."
             raise RuntimeError(
-                "Balasan Apps Script bukan JSON. Biasanya karena Web App belum di-deploy dengan "
-                "akses 'Anyone', atau URL yang dipakai bukan URL Web App (harus berakhiran /exec).")
+                f"Balasan Apps Script bukan JSON. {sebab}\n"
+                f"  HTTP {r.status_code} dari {alamat}\n  Judul halaman: {judul}")
         if not d.get("ok"):
             raise RuntimeError(f"Apps Script: {d.get('error')}")
         return d
